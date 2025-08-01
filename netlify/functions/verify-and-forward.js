@@ -1,6 +1,4 @@
 // netlify/functions/verify-and-forward.js
-import fetch from 'node-fetch';
-
 export async function handler(event, context) {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ success: false, error: 'Method not allowed' }) };
