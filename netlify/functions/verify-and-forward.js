@@ -1,20 +1,29 @@
 // netlify/functions/verify-and-forward.js
-export async function handler(event, context) {
+module.exports.handler = async function (event, context) {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ success: false, error: 'Method not allowed' }) };
   }
 
-  // parse incoming form URL-encoded body
-  const params = new URLSearchParams(event.body || '');
+  // Ensure secret is available
+  const secret = process.env.RECAPTCHA_SECRET;
+  if (!secret) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        success: false,
+        error: 'Missing RECAPTCHA_SECRET in environment',
+        note: 'If this is a Deploy Preview from a fork, secrets may be blocked; deploy on main or approve the preview.',
+      }),
+    };
+  }
 
-  // get reCAPTCHA token
+  const params = new URLSearchParams(event.body || '');
   const captchaToken = params.get('g-recaptcha-response');
   if (!captchaToken) {
     return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Missing recaptcha token' }) };
   }
 
   // verify with Google
-  const secret = process.env.RECAPTCHA_SECRET;
   const verifyResp = await fetch('https://www.google.com/recaptcha/api/siteverify', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -28,7 +37,7 @@ export async function handler(event, context) {
     };
   }
 
-  // forward everything to Salesforce Web-to-Lead
+  // forward to Salesforce
   const salesforceResp = await fetch(
     'https://webto.salesforce.com/servlet/servlet.WebToLead?encoding=UTF-8&orgId=00Dj0000001pL1W',
     {
@@ -43,4 +52,4 @@ export async function handler(event, context) {
   }
 
   return { statusCode: 200, body: JSON.stringify({ success: true }) };
-}
+};
