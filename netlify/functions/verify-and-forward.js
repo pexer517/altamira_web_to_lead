@@ -1,7 +1,26 @@
 // netlify/functions/verify-and-forward.js
 module.exports.handler = async function (event, context) {
+  // CORS preflight
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 204,
+      headers: {
+        'Access-Control-Allow-Origin': 'https://www.altamiraltd.com',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Max-Age': '86400',
+      },
+      body: '',
+    };
+  }
+
+  // Only allow POST
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: JSON.stringify({ success: false, error: 'Method not allowed' }) };
+    return {
+      statusCode: 405,
+      headers: { 'Access-Control-Allow-Origin': 'https://www.altamiraltd.com' },
+      body: JSON.stringify({ success: false, error: 'Method not allowed' }),
+    };
   }
 
   // Ensure secret is available
@@ -9,6 +28,7 @@ module.exports.handler = async function (event, context) {
   if (!secret) {
     return {
       statusCode: 500,
+      headers: { 'Access-Control-Allow-Origin': 'https://www.altamiraltd.com' },
       body: JSON.stringify({
         success: false,
         error: 'Missing RECAPTCHA_SECRET in environment',
@@ -20,19 +40,34 @@ module.exports.handler = async function (event, context) {
   const params = new URLSearchParams(event.body || '');
   const captchaToken = params.get('g-recaptcha-response');
   if (!captchaToken) {
-    return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Missing recaptcha token' }) };
+    return {
+      statusCode: 400,
+      headers: { 'Access-Control-Allow-Origin': 'https://www.altamiraltd.com' },
+      body: JSON.stringify({ success: false, error: 'Missing recaptcha token' }),
+    };
   }
 
   // verify with Google reCAPTCHA
-  const verifyResp = await fetch('https://www.google.com/recaptcha/api/siteverify', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: 'secret=' + encodeURIComponent(secret) + '&response=' + encodeURIComponent(captchaToken),
-  });
-  const verifyData = await verifyResp.json();
+  let verifyData;
+  try {
+    const verifyResp = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'secret=' + encodeURIComponent(secret) + '&response=' + encodeURIComponent(captchaToken),
+    });
+    verifyData = await verifyResp.json();
+  } catch (err) {
+    return {
+      statusCode: 500,
+      headers: { 'Access-Control-Allow-Origin': 'https://www.altamiraltd.com' },
+      body: JSON.stringify({ success: false, error: 'Captcha verification request failed', detail: err.message }),
+    };
+  }
+
   if (!verifyData.success) {
     return {
       statusCode: 400,
+      headers: { 'Access-Control-Allow-Origin': 'https://www.altamiraltd.com' },
       body: JSON.stringify({ success: false, error: 'Captcha failed', details: verifyData['error-codes'] }),
     };
   }
@@ -48,8 +83,16 @@ module.exports.handler = async function (event, context) {
   );
 
   if (!salesforceResp.ok) {
-    return { statusCode: 502, body: JSON.stringify({ success: false, error: 'Salesforce forwarding failed' }) };
+    return {
+      statusCode: 502,
+      headers: { 'Access-Control-Allow-Origin': 'https://www.altamiraltd.com' },
+      body: JSON.stringify({ success: false, error: 'Salesforce forwarding failed' }),
+    };
   }
 
-  return { statusCode: 200, body: JSON.stringify({ success: true }) };
+  return {
+    statusCode: 200,
+    headers: { 'Access-Control-Allow-Origin': 'https://www.altamiraltd.com' },
+    body: JSON.stringify({ success: true }),
+  };
 };
