@@ -23,11 +23,11 @@ module.exports.handler = async function (event, context) {
     return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Missing recaptcha token' }) };
   }
 
-  // verify with Google
+  // verify with Google reCAPTCHA
   const verifyResp = await fetch('https://www.google.com/recaptcha/api/siteverify', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: \`secret=\${encodeURIComponent(secret)}&response=\${encodeURIComponent(captchaToken)}\`,
+    body: 'secret=' + encodeURIComponent(secret) + '&response=' + encodeURIComponent(captchaToken),
   });
   const verifyData = await verifyResp.json();
   if (!verifyData.success) {
@@ -37,7 +37,7 @@ module.exports.handler = async function (event, context) {
     };
   }
 
-  // forward to Salesforce
+  // forward to Salesforce Web-to-Lead
   const salesforceResp = await fetch(
     'https://webto.salesforce.com/servlet/servlet.WebToLead?encoding=UTF-8&orgId=00Dj0000001pL1W',
     {
